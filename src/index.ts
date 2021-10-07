@@ -93,7 +93,7 @@ export async function codegen(params: ISwaggerOptions) {
     })
   }
 
-  let requestClass = requestCodegen(paths, isV3, options)
+  let requestClass = requestCodegen(paths, swaggerSource.components, isV3, options)
   // let requestClasses = Object.entries(requestCodegen(swaggerSource.paths, isV3, options))
 
   const { models, enums } = isV3
@@ -105,7 +105,7 @@ export async function codegen(params: ISwaggerOptions) {
   // TODO: next next next time
   if (options.multipleFileMode) {
     // if (true) {
-    Object.entries(requestCodegen(swaggerSource.paths, isV3, options)).forEach(([className, requests]) => {
+    Object.entries(requestCodegen(swaggerSource.paths, swaggerSource.components, isV3, options)).forEach(([className, requests]) => {
       let text = ''
       let allImport: string[] = []
       requests.forEach(req => {

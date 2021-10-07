@@ -1,5 +1,5 @@
 import { getMethodName, RemoveSpecialCharacters } from '../utils'
-import { IPaths } from '../swaggerInterfaces'
+import { IComponents, IPaths } from '../swaggerInterfaces'
 import { getRequestParameters } from './getRequestParameters'
 import { getResponseType } from './getResponseType'
 import camelcase from 'camelcase'
@@ -19,7 +19,7 @@ export interface IRequestMethods {
   requestSchema: any;
 }
 
-export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOptions): IRequestClass {
+export function requestCodegen(paths: IPaths, components: IComponents, isV3: boolean, options: ISwaggerOptions): IRequestClass {
   const requestClasses: IRequestClass = {}
 
   if (!!paths)
@@ -63,7 +63,17 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
 
           // 合并两个参数类型
           if (multipartDataProperties) {
-            tempParameters = tempParameters.concat(mapFormDataToV2(multipartDataProperties.schema))
+            let multipartSchema = multipartDataProperties.schema
+            if(multipartSchema.$ref && components && components.schemas) {
+              const schParts = multipartSchema.$ref.split('/');
+              if(schParts.length > 2){
+                // @ts-ignore
+                multipartSchema = components.schemas[schParts[schParts.length - 1]]
+              }
+
+            }
+            
+            tempParameters = tempParameters.concat(mapFormDataToV2(multipartSchema))
           }
 
           parsedParameters = getRequestParameters(tempParameters, options.useHeaderParameters)
