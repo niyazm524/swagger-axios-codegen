@@ -1,4 +1,65 @@
 
+## 0.16.0
+
+- feat:
+  - Creating objects with strong type validation #153
+  - Prefer_Json_over_other_content_types (prefer 'form-data' over json)
+  - allow_self_signed_certificates
+- chore:
+  - fix pathClassNameDefaultName params
+
+
+
+## 0.15.11
+
+- optimize
+  - optimize loaded spec document fail error
+  - optimize get uniqueMethodName fail error
+
+## 0.15.8
+
+- bugfix
+  - fix IRequestOptions
+  - fix cache spec
+
+## 0.15.3
+
+- bugfix
+  - fix #168
+  - fix className when it is the beginning of the number
+
+## 0.15.0
+- feat: 
+  - set showError in axios interceptor config
+  - add classNameMode. when classNameMode=parentPath, codegen will take url penultimate path
+
+## 0.14.0
+
+- feat:
+  - set loading in axios interceptor config
+
+## 0.13.2
+
+- feat:
+  - support ios13 get method does not have body
+
+## 0.12.10
+
+- bugfix
+  -fix requestBody upload file.
+
+
+## 0.12.8
+
+- bugfix:
+  - fix missing comma in example config
+
+- optimize:
+  - chore(IParameter): Add optional $ref property
+
+- feat:
+  - feat(getUniqParams): Use name of $ref if v has no name
+
 ## 0.12.7
 
 - optimize:

@@ -20,10 +20,14 @@ import { requestCodegen, IRequestClass, IRequestMethods } from './requestCodegen
 import { componentsCodegen } from './componentsCodegen'
 import { definitionsCodeGen } from './definitionCodegen'
 
+const https = require('https');
+
 const defaultOptions: ISwaggerOptions = {
   serviceNameSuffix: 'Service',
   enumNamePrefix: 'Enum',
   methodNameMode: 'operationId',
+  classNameMode: 'normal',
+  pathClassNameDefaultName: 'Global',
   outputDir: './service',
   fileName: 'index.ts',
   useStaticMethod: true,
@@ -44,20 +48,26 @@ export async function codegen(params: ISwaggerOptions) {
   console.time('finish')
   let err
   let swaggerSource: ISwaggerSource
+  let swaggerSpecFileName = `./${params.fileName}_cache_swagger.json`
   setDefinedGenericTypes(params.extendGenericType)
   // 获取接口定义文件
-  if (params.remoteUrl) {
-    const { data: swaggerJson } = await axios({ url: params.remoteUrl, responseType: 'text' })
-    if (Object.prototype.toString.call(swaggerJson) === '[object String]') {
-      fs.writeFileSync('./cache_swagger.json', swaggerJson)
-      swaggerSource = require(path.resolve('./cache_swagger.json'))
+  try {
+    if (params.remoteUrl) {
+      const { data: swaggerJson } = await axios({ url: params.remoteUrl, responseType: 'text', httpsAgent: new https.Agent({ rejectUnauthorized: false }) })
+      if (Object.prototype.toString.call(swaggerJson) === '[object String]') {
+        fs.writeFileSync(swaggerSpecFileName, swaggerJson)
+        swaggerSource = require(path.resolve(swaggerSpecFileName))
+      } else {
+        swaggerSource = <ISwaggerSource>swaggerJson
+      }
+    } else if (params.source) {
+      swaggerSource = <ISwaggerSource>params.source
     } else {
-      swaggerSource = <ISwaggerSource>swaggerJson
+      throw new Error('remoteUrl or source must have a value')
     }
-  } else if (params.source) {
-    swaggerSource = <ISwaggerSource>params.source
-  } else {
-    throw new Error('remoteUrl or source must have a value')
+  } catch (error) {
+    console.log('loaded spec document fail!', params.remoteUrl ?? params.source, ', Error: ' + (error as Error).message)
+    return
   }
 
   const options: ISwaggerOptions = {
@@ -87,7 +97,7 @@ export async function codegen(params: ISwaggerOptions) {
   if (options.urlFilters?.length > 0) {
     paths = {}
     Object.keys(swaggerSource.paths).forEach(path => {
-      if (options.urlFilters.some(urlFilter => urlFilter.indexOf(path) > -1)) {
+      if (options.urlFilters.some(urlFilter => path.includes(urlFilter))) {
         paths[path] = swaggerSource.paths[path]
       }
     })
@@ -182,8 +192,8 @@ export async function codegen(params: ISwaggerOptions) {
   else {
     codegenAll(apiSource, options, requestClass, models, enums)
   }
-  if (fs.existsSync('./cache_swagger.json')) {
-    fs.unlinkSync('./cache_swagger.json')
+  if (fs.existsSync(swaggerSpecFileName)) {
+    fs.unlinkSync(swaggerSpecFileName)
   }
   console.timeEnd('finish')
   if (err) {

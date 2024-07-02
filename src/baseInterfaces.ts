@@ -4,6 +4,9 @@ export interface ISwaggerOptions {
   serviceNameSuffix?: string
   enumNamePrefix?: string
   methodNameMode?: 'operationId' | 'path' | 'shortOperationId' | ((reqProps: IRequestMethod) => string)
+  classNameMode?: 'parentPath' | 'normal' | ((path: string, method: string, reqProps:IRequestMethod) => string)
+  /** only effect classNameMode='parentPath' */
+  pathClassNameDefaultName?: string
   outputDir?: string
   fileName?: string
   remoteUrl?: string
@@ -35,7 +38,9 @@ export interface ISwaggerOptions {
   /** shared service options to multiple service. Can't use with MultipleFileMode */
   sharedServiceOptions?: boolean | undefined
   /** use parameters in header or not*/
-  useHeaderParameters: boolean
+  useHeaderParameters?: boolean
+  /** wrapper response type */
+  responseTypeWrapper ?: (responseType: string)=> string
 }
 
 export interface IPropDef {

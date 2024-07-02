@@ -1,12 +1,11 @@
-import { getMethodName, RemoveSpecialCharacters } from '../utils'
+import camelcase from 'camelcase'
+import { ISwaggerOptions } from '../baseInterfaces'
 import { IComponents, IPaths } from '../swaggerInterfaces'
+import { getClassNameByPath, getMethodNameByPath, RemoveSpecialCharacters } from '../utils'
+import { getContentType } from './getContentType'
+import { getRequestBody } from './getRequestBody'
 import { getRequestParameters } from './getRequestParameters'
 import { getResponseType } from './getResponseType'
-import camelcase from 'camelcase'
-import { isNullOrUndefined } from 'util'
-import { getRequestBody } from './getRequestBody'
-import { ISwaggerOptions } from '../baseInterfaces'
-import { getContentType } from './getContentType'
 import { mapFormDataToV2 } from './mapFormDataToV2'
 
 export interface IRequestClass {
@@ -24,16 +23,16 @@ export function requestCodegen(paths: IPaths, components: IComponents, isV3: boo
 
   if (!!paths)
     for (const [path, request] of Object.entries(paths)) {
-      let methodName = getMethodName(path)
+      let methodName = getMethodNameByPath(path)
       for (const [method, reqProps] of Object.entries(request)) {
         methodName =
           options.methodNameMode === 'operationId'
             ? reqProps.operationId
             : options.methodNameMode === 'shortOperationId'
-            ? trimSuffix(reqProps.operationId, reqProps.tags?.[0])
-            : typeof options.methodNameMode === 'function'
-            ? options.methodNameMode(reqProps)
-            : methodName
+              ? trimSuffix(reqProps.operationId, reqProps.tags?.[0])
+              : typeof options.methodNameMode === 'function'
+                ? options.methodNameMode(reqProps)
+                : methodName
         if (!methodName) {
           // console.warn('method Name is null：', path);
           continue
@@ -42,9 +41,26 @@ export function requestCodegen(paths: IPaths, components: IComponents, isV3: boo
         let formData = ''
         let pathReplace = ''
         // 获取类名
-        if (!reqProps.tags) continue
-        const className = camelcase(RemoveSpecialCharacters(reqProps.tags[0]), { pascalCase: true })
+        let className
+        if (options.classNameMode === 'parentPath') {
+          className = getClassNameByPath(path)
+          // 空则归类默认类名
+          if (className === '') {
+            className = options.pathClassNameDefaultName
+          } else {
+            className = camelcase(className, { pascalCase: true })
+          }
+        } else if (typeof options.classNameMode === 'function') {
+          className = options.classNameMode(path, method, reqProps)
+        } else {
+          if (!reqProps.tags) continue
+          className = camelcase(RemoveSpecialCharacters(reqProps.tags[0]), { pascalCase: true })
+        }
+
         if (className === '') continue
+        // 如果是数字开头，则加上下划线
+        if (!Number.isNaN(Number(className[0]))) className = '_' + className
+
         // 是否存在
         if (!requestClasses[className]) {
           requestClasses[className] = []
@@ -120,17 +136,22 @@ export function requestCodegen(paths: IPaths, components: IComponents, isV3: boo
         // TODO 待优化，目前简单处理同名方法
         let uniqueMethodName = camelcase(methodName)
 
-        var uniqueMethodNameReg = new RegExp(`^${uniqueMethodName}[0-9]*$`)
-
-        const methodCount = requestClasses[className].filter(
-          item => uniqueMethodName === item.name || uniqueMethodNameReg.test(item.name)
-        ).length
-
-        // console.log(uniqueMethodName, methodCount)
-        if (methodCount >= 1) {
-          uniqueMethodName = uniqueMethodName + methodCount
-          // console.log(uniqueMethodName)
+        try {
+          var uniqueMethodNameReg = new RegExp(`^${uniqueMethodName}[0-9]*$`)
+          const methodCount = requestClasses[className].filter(
+            item => uniqueMethodName === item.name || uniqueMethodNameReg.test(item.name)
+          ).length
+          // console.log(uniqueMethodName, methodCount)
+          if (methodCount >= 1) {
+            uniqueMethodName = uniqueMethodName + methodCount
+            // console.log(uniqueMethodName)
+          }
+        } catch (error) {
+          // 获取方法名字失败，跳过该请求
+          console.log('error request, url: ', path)
+          continue
         }
+
         requestClasses[className].push({
           name: uniqueMethodName,
           operationId: uniqueMethodName,

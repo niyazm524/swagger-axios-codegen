@@ -1,6 +1,6 @@
 import camelcase from 'camelcase'
-import { IPropDef, ISwaggerOptions } from '../baseInterfaces'
-import { toBaseType, isDefinedGenericTypes, getDefinedGenericTypes } from '../utils'
+import { IPropDef } from '../baseInterfaces'
+import { isDefinedGenericTypes, toBaseType } from '../utils'
 
 const baseTypes = ['string', 'number', 'object', 'boolean', 'any']
 const isAdditionalProperties = (x: string) => x === "[additionalProperties: string]"
@@ -80,8 +80,8 @@ export function classTemplate(
       )
       .join('')}
 
-    constructor(data: (undefined | any) = {}){
-        ${props.map(p => classConstructorTemplate(p.name)).join('')}
+    constructor(data: ${name} = {}){
+      Object.assign(this, data);
     }
     ${generateValidationModel ? classValidationModelTemplate(props) : ''}
   }
@@ -107,7 +107,7 @@ export function classPropsTemplate(
   if (isNotAdditionalProperties(filedName)) {
     filedName = `'${filedName}'`
   }
-  if (useClassTransformer && format) {
+  if (useClassTransformer) {
     const decorators = classTransformTemplate(type, format, isType)
 
     return `
@@ -201,9 +201,9 @@ export function requestTemplate(name: string, requestSchema: IRequestSchema, opt
     pathReplace = '',
     parsedParameters = <any>{},
     formData = '',
-    requestBody = null
+    requestBody = null,
   } = requestSchema
-  const { useClassTransformer } = options
+  const { useClassTransformer, responseTypeWrapper } = options
   const { queryParameters = [], bodyParameter = [], headerParameters } = parsedParameters
   const nonArrayType = responseType.replace('[', '').replace(']', '')
   const isArrayType = responseType.indexOf('[') > 0
@@ -219,7 +219,7 @@ export function requestTemplate(name: string, requestSchema: IRequestSchema, opt
  */
 ${options.useStaticMethod ? 'static' : ''} ${camelcase(
     name
-  )}(${parameters}options:IRequestOptions={}):Promise<${responseType}> {
+  )}(${parameters}options:IRequestOptions={}):Promise<${responseTypeWrapper ? responseTypeWrapper(responseType) : responseType}> {
   return new Promise((resolve, reject) => {
     let url = basePath+'${path}'
     ${pathReplace}
@@ -228,18 +228,35 @@ ${options.useStaticMethod ? 'static' : ''} ${camelcase(
       : ''}
     const configs:IRequestConfig = getConfigs('${method}', '${contentType}', url, options)
     ${parsedParameters && queryParameters.length > 0 ? 'configs.params = {' + queryParameters.join(',') + '}' : ''}
-    let data = ${parsedParameters && bodyParameter && bodyParameter.length > 0
-      ? // ? bodyParameters.length === 1 && bodyParameters[0].startsWith('[') ? bodyParameters[0] : '{' + bodyParameters.join(',') + '}'
-      bodyParameter
-      : !!requestBody
-        ? 'params.body'
-        : 'null'
-    }
-    ${contentType === 'multipart/form-data' ? formData : ''}
-    configs.data = data;
+    
+    
+    ${requestBodyString(method, parsedParameters, bodyParameter, requestBody, contentType, formData)}
+    
     axios(configs, ${resolveString}, reject);
   });
 }`
+}
+
+function requestBodyString(method: string, parsedParameters: [], bodyParameter: [], requestBody: string, contentType: string, formData: string) {
+  if (parsedParameters && bodyParameter && bodyParameter.length > 0 || !!requestBody || formData.length > 0) {
+
+    const tips = `/** 适配移动开发（iOS13 等版本），只有 POST、PUT 等请求允许带body */ \n 
+    console.warn('适配移动开发（iOS13 等版本），只有 POST、PUT 等请求允许带body')`
+    return `
+    
+    ${method === 'post' || method === 'put' ? '' : tips}
+
+    let data = ${parsedParameters && bodyParameter && bodyParameter.length > 0
+        ?
+        bodyParameter
+        : !!requestBody
+          ? 'params.body'
+          : 'null'
+      }
+    ${contentType === 'multipart/form-data' ? formData : ''}
+    configs.data = data;`
+  }
+  return ''
 }
 
 /** serviceTemplate */

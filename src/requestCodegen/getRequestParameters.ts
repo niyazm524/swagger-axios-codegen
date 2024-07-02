@@ -14,10 +14,9 @@ function getUniqParams(params: IParameter[]): IParameter[] {
   params.forEach(v => {
     // _${v.in}
     // TODO:同名但是v.in= query |path |body 的情况同时出现如何处理？分出不同的request参数？
-    if ('$ref' in v && !('name' in v)) {
-      // @ts-ignore
-      v.name = refClassName(v.$ref);
-    }    
+    if ('$ref' in (v as IParameter) && !('name' in (v as IParameter))) {
+      v.name = refClassName(v.$ref)
+    }
     if (!v.name.includes('[0]')) {
       //DTO class中存在List<T>时会出现这种参数 (list[0].prop)
       uniqParams[`${v.name}`] = v
@@ -61,12 +60,12 @@ export function getRequestParameters(params: IParameter[], useHeaderParameters: 
       }
       imports.push(propType)
     } else if (p.items) {
-      propType = p.items.$ref ? refClassName(p.items.$ref) + '[]' : toBaseType(p.items.type) + '[]'
+      propType = p.items.$ref ? refClassName(p.items.$ref) + '[]' : toBaseType(p.items.type, p.items?.format) + '[]'
       imports.push(propType)
     }
     // 基本类型
     else {
-      propType = toBaseType(p.type)
+      propType = toBaseType(p.type, p?.format)
     }
 
     const paramName = camelcase(p.name)

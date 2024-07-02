@@ -59,20 +59,30 @@ export function getGenericsClassNames(definitionClassName: string): string {
  * 获取引用类型
  * @param s
  */
-export function refClassName(s: string): string {
+export function refClassName(s: string, format?: string): string {
   let propType = s?.slice(s.lastIndexOf('/') + 1)
-  return isOpenApiGenerics(propType)
+  let result = isOpenApiGenerics(propType)
     ? getGenericsClassNames(propType)
-    : toBaseType(trimString(RemoveSpecialCharacters(propType), '_', 'right'))
+    : toBaseType(trimString(RemoveSpecialCharacters(propType), '_', 'right'), format)
+
+  // 如果是数字开头，则加上下划线
+  if (!Number.isNaN(Number(result[0]))) result = 'IRef' + result
+  return result
 }
 
 /** 移除特殊字符 */
 export function RemoveSpecialCharacters(str: string) {
-  return str?.replace(/[`~!@#$%^&*()_+<>«»?:"{},.\/;'[\]]/g, '_')
+  return str?.replace(/[-`~!@#$%^&*()_+<>«»?:"{},.\/;'[\]]/g, '_')
+}
+
+const reg = new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$", 'g');
+
+export function validRefTypeName(str: string) {
+  return reg.test(str)
 }
 
 export function isBaseType(s: string) {
-  return ['boolean', 'number', 'string', 'string', 'Date', 'any'].includes(s)
+  return ['boolean', 'number', 'string', 'Date', 'any'].includes(s)
 }
 
 export function toBaseType(s: string, format?: string) {
@@ -94,7 +104,7 @@ export function toBaseType(s: string, format?: string) {
     case 'int':
     case 'integer':
     case 'number':
-      result = 'number'
+      result = format === 'int64' || format === 'Int64' || format === 'long' ? 'string' : 'number'
       break
     case 'Guid':
     case 'String':
@@ -119,12 +129,21 @@ export function toBaseType(s: string, format?: string) {
   return result
 }
 
-export function getMethodName(path: string) {
+export function getMethodNameByPath(path: string) {
   const paths = path.split('/')
   for (let i = paths.length - 1; i >= 0; i--) {
     if (/\{.+\}/.test(paths[i]) === false) {
       return paths[i]
     }
+  }
+  return ''
+}
+
+
+export function getClassNameByPath(path: string) {
+  const paths = path.split('/')
+  if (paths.length > 1) {
+    return paths[paths.length - 2]
   }
   return ''
 }
